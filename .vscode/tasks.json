@@ -16,23 +16,27 @@
         }
     },
     "tasks": [
-                {
+        {
             "label": "deploy",
             "type": "shell",
             "command": "Copy-Item",
             "args": [
                 "${file}",
-                "-Destination", 
-                "d:\\code.py"],
+                "-Destination",
+                "d:\\code.py"
+            ],
             "presentation": {
                 "echo": true,
                 "reveal": "always",
                 "focus": false,
                 "panel": "shared",
-                "showReuseMessage": false,
+                "showReuseMessage": true,
                 "clear": false
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
             }
         }
-
     ]
 }
