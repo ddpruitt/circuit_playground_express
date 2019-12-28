@@ -4,6 +4,8 @@ import audiobusio
 import time
 import board
 import pulseio
+import analogio
+import simpleio
 import neopixel
 import digitalio
 
@@ -49,6 +51,8 @@ speaker_enable.value = True
  
 # For the M0 boards:
 piezo = pulseio.PWMOut(board.SPEAKER, duty_cycle=0, frequency=440, variable_frequency=True)
+
+light = analogio.AnalogIn(board.LIGHT)
 
 
 pixels = neopixel.NeoPixel(board.NEOPIXEL, NUM_PIXELS, brightness=0.1, auto_write=False)
@@ -138,47 +142,18 @@ mic = audiobusio.PDMIn(board.MICROPHONE_CLOCK, board.MICROPHONE_DATA, sample_rat
 # Record an initial sample to calibrate. Assume it's quiet when we start.
 samples = array.array('H', [0] * NUM_SAMPLES)
 mic.record(samples, len(samples))
-# Set lowest level to expect, plus a little.
 input_floor = normalized_rms(samples) + 10
-# OR: used a fixed floor
-# input_floor = 50
- 
-# You might want to print the input_floor to help adjust other values.
-# print(input_floor)
- 
-# Corresponds to sensitivity: lower means more pixels light up with lower sound
-# Adjust this as you see fit.
 input_ceiling = input_floor + 500
  
 peak = 0
 
 while True:
-    mic.record(samples, len(samples))
-    magnitude = normalized_rms(samples)
-    # You might want to print this to see the values.
-    # print(magnitude)
- 
-    # Compute scaled logarithmic reading in the range 0 to NUM_PIXELS
-    c = log_scale(constrain(magnitude, input_floor, input_ceiling),
-                  input_floor, input_ceiling, 0, NUM_PIXELS)
 
     if switch.value:
-        for f in (262, 294, 330, 349, 392, 440, 494, 523):
-            piezo.frequency = f
-            piezo.duty_cycle = 65536 // 2  # On 50%
-            time.sleep(0.25)  # On for 1/4 second
-            piezo.duty_cycle = 0  # Off
-            time.sleep(0.05)  # Pause between notes
-        
-
-    if buttonA.value:  # button is pushed
-        led.value = True
-        rainbow_cycle(0.001)
-
-    elif buttonB.value:
-        led.value = True
-        rainbow(0.001)
-    else:
+        mic.record(samples, len(samples))
+        magnitude = normalized_rms(samples)
+        c = log_scale(constrain(magnitude, input_floor, input_ceiling),
+                    input_floor, input_ceiling, 0, NUM_PIXELS)
         pixels.fill(0)
         for i in range(NUM_PIXELS):
             if i < c:
@@ -191,5 +166,32 @@ while True:
             if peak > 0:
                 pixels[int(peak)] = PEAK_COLOR
         pixels.show()  
+    else:
+        peak = simpleio.map_range(light.value, 2000, 62000, 0, 9)
+        print(light.value)
+        print(int(peak))
+    
+        for i in range(0, 9, 1):
+            if i <= peak:
+                pixels[i] = GREEN
+            else:
+                pixels[i] = OFF
+        pixels.show()
 
+         
+
+    if buttonA.value:  # button is pushed
+        for f in (262, 294, 330, 349, 392, 440, 494, 523):
+            piezo.frequency = f
+            piezo.duty_cycle = 65536 // 2  # On 50%
+            time.sleep(0.25)  # On for 1/4 second
+            piezo.duty_cycle = 0  # Off
+            time.sleep(0.05)  # Pause between notes
+
+    elif buttonB.value:
+        led.value = True
+        rainbow(0.001)
+
+    pixels.fill(0)
+    pixels.show()
     time.sleep(0.001)
